@@ -14,7 +14,7 @@ El VPS nunca compila (bien para un VPS chico de 1–2 GB).
 ```
 
 Archivos: `.github/workflows/ci-cd.yml`, `scripts/deploy.sh`, `scripts/backup.sh`,
-`scripts/vps-setup.sh`, `docker-compose.prod.yml`, `.gitleaks.toml`, `.github/dependabot.yml`.
+`scripts/vps-setup.sh`, `infra/proxy/`, `docker-compose.prod.yml`, `.gitleaks.toml`, `.github/dependabot.yml`.
 
 ---
 
@@ -36,7 +36,7 @@ Opcional en local (antes de cada commit): `gitleaks protect --staged --config .g
 
 ## ✅ Ahora (sin VPS todavía)
 
-1. Crear el repo en GitHub (**privado** recomendado) y hacer push:
+1. Repo: `github.com/darkn-code/job-machine` (público — por eso todo lo personal va en `.gitignore`):
    ```bash
    git remote add origin git@github.com:<usuario>/job-machine.git
    git push -u origin main
@@ -46,61 +46,42 @@ Opcional en local (antes de cada commit): `gitleaks protect --staged --config .g
 3. Recomendado: *Settings → Branches → Add rule* para `main`: exigir que pasen los checks
    (`Backend`, `Frontend`, `Escaneo de secretos`) antes de mergear.
 
-## 🖥️ Cuando compres el VPS
+## 🖥️ VPS (configurado 2026-10-04)
 
-Recomendado: Ubuntu 24.04, **2 GB RAM** (1 GB funciona con swap), y un dominio/subdominio apuntando a su IP.
+VPS: Ubuntu 24.04, 4 vCPU, 8 GB. Arquitectura:
 
-1. **Preparar el servidor** (como root):
-   ```bash
-   DOMAIN=panel.tu-dominio.com bash scripts/vps-setup.sh   # sube el script con scp o curl
-   ```
-   Instala Docker, crea el usuario `deploy`, firewall (22/80/443), fail2ban, swap, Caddy con HTTPS
-   automático → `localhost:8080`, y cron de backup diario.
+```
+Internet :80/:443 ──► /opt/proxy  (nginx compartido + certbot, red Docker `proxy`)
+                          │ proxy_pass http://jobmachine-web:80
+                          ▼
+                     /opt/job-machine (docker-compose.prod.yml, sin puertos publicados)
+                       web (nginx SPA) ──► backend (gunicorn) ──► db (Postgres, red interna)
+```
 
-2. **Llave SSH solo para deploy** (en tu PC):
-   ```bash
-   ssh-keygen -t ed25519 -f ~/.ssh/jobmachine_deploy -N "" -C "github-actions-deploy"
-   ```
-   - Pública (`.pub`) → `/home/deploy/.ssh/authorized_keys` del VPS.
-   - Privada → secret `VPS_SSH_KEY` en GitHub (y luego bórrala de tu PC si quieres).
-   - `ssh-keyscan -H <ip-del-vps>` → secret `VPS_KNOWN_HOSTS` (evita ataques MITM).
-
-3. **Clonar en el VPS** (como `deploy`). Si el repo es privado, añade una *Deploy key* de solo
-   lectura (Settings → Deploy keys) generada en el VPS (`ssh-keygen -t ed25519`):
-   ```bash
-   git clone git@github.com:<usuario>/job-machine.git /opt/job-machine
-   cd /opt/job-machine && cp .env.example .env && nano .env
-   ```
-   En `.env`: `DJANGO_SECRET_KEY` nueva, contraseñas fuertes, `IMAGE_REGISTRY=ghcr.io/<usuario-en-minúsculas>`,
-   `HTTP_PORT=8080` (Caddy ocupa 80/443), `DJANGO_SECURE_COOKIES=1`,
-   `DJANGO_ALLOWED_HOSTS=panel.tu-dominio.com,localhost,127.0.0.1,backend`,
-   `DJANGO_CSRF_TRUSTED_ORIGINS=https://panel.tu-dominio.com`.
-   (`127.0.0.1` es necesario: el healthcheck entra por ahí.)
-
-4. **Seed opcional** (historial real, no está en el repo ni en la imagen). Después del primer deploy,
-   copia el JSON al VPS (`scp postulaciones.json deploy@<vps>:~`) y cárgalo:
-   `docker compose -f docker-compose.prod.yml exec -T backend python manage.py seed --archivo /dev/stdin < ~/postulaciones.json`
-   (es idempotente). Pon `SEED_ON_START=0` en `.env`.
-
-5. **GitHub → Settings → Secrets and variables → Actions**:
+1. **Setup** (root, idempotente): `curl -fsSL https://raw.githubusercontent.com/darkn-code/job-machine/main/scripts/vps-setup.sh | sudo bash`
+   Docker, firewall (22/80/443), fail2ban, actualizaciones automáticas, usuario `deploy`,
+   red `proxy`, nginx compartido, clon del repo y crons (backup 04:00, renovación de certificados).
+2. **`.env`** en `/opt/job-machine` (secretos generados en el propio VPS, nunca salen de ahí):
+   `IMAGE_REGISTRY=ghcr.io/darkn-code`, `DJANGO_ALLOWED_HOSTS` y `DJANGO_CSRF_TRUSTED_ORIGINS`
+   con la IP/dominio (+ `localhost,127.0.0.1,backend`; `127.0.0.1` lo usa el healthcheck).
+3. **Llave de deploy**: par ed25519 solo para GitHub Actions; la pública en
+   `/home/deploy/.ssh/authorized_keys`, la privada en el secret `VPS_SSH_KEY`.
+4. **GitHub → Settings → Secrets and variables → Actions**:
 
    | tipo | nombre | valor |
    |---|---|---|
    | Secret | `VPS_SSH_KEY` | llave privada de deploy |
    | Secret | `VPS_KNOWN_HOSTS` | salida de `ssh-keyscan -H <ip>` |
-   | Variable | `VPS_HOST` | IP o dominio |
+   | Variable | `VPS_HOST` | IP del VPS |
    | Variable | `VPS_USER` | `deploy` |
-   | Variable | `VPS_PORT` | `22` (opcional) |
-   | Variable | `VPS_APP_DIR` | `/opt/job-machine` (opcional) |
-   | Variable | `APP_URL` | `https://panel.tu-dominio.com` |
-   | Variable | `DEPLOY_ENABLED` | `true` ← enciende el deploy |
+   | Variable | `VPS_APP_DIR` | `/opt/job-machine` |
+   | Variable | `APP_URL` | URL pública |
+   | Variable | `DEPLOY_ENABLED` | `true` |
 
-   Opcional: en *Settings → Environments → production* pide aprobación manual antes de cada deploy.
-
-6. Primer deploy: *Actions → CI/CD → Run workflow* (o un push a `main`). Luego:
-   ```bash
-   docker compose -f docker-compose.prod.yml exec backend python manage.py create_bot_token   # token GabyBot
-   ```
+5. **Dominio + HTTPS**: pasos en [`infra/proxy/README.md`](../infra/proxy/README.md).
+6. **Seed opcional** (historial real, no está en el repo ni en la imagen): `scp postulaciones.json deploy@<vps>:~` y
+   `docker compose -f docker-compose.prod.yml exec -T backend python manage.py seed --archivo /dev/stdin < ~/postulaciones.json`.
+7. **Token de GabyBot**: `docker compose -f docker-compose.prod.yml exec backend python manage.py create_bot_token`.
 
 ## 🔁 Operación
 

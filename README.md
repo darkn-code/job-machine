@@ -64,22 +64,9 @@ docker compose down        # parar (los datos quedan en el volumen pgdata)
 secretos, publica las imágenes en GHCR y despliega por SSH al VPS (`scripts/deploy.sh`, con
 backup previo, healthcheck y rollback). El deploy se activa con la variable `DEPLOY_ENABLED=true`.
 
-Deploy manual sin CI:
-
-```bash
-git clone <repo> job-machine && cd job-machine
-cp .env.example .env          # cambia SECRET_KEY, contraseñas, dominio en ALLOWED_HOSTS/CSRF
-docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml exec backend python manage.py create_bot_token
-```
-
-Solo se expone nginx (puerto `HTTP_PORT`, default 80): sirve el frontend y hace de proxy
-a gunicorn (`/api`, `/admin`). Postgres no se publica. Consumo aproximado: ~350–450 MB RAM
-(entra en 1 GB con swap, cómodo en 2 GB).
-
-**HTTPS** (recomendado, el token viaja en cada request): pon `HTTP_PORT=8080` y delante un
-Caddy en el host (`tu-dominio.com { reverse_proxy localhost:8080 }`, certificado automático),
-luego `DJANGO_SECURE_COOKIES=1`. Alternativa sin dominio: exponer solo por Tailscale.
+En el VPS: un **nginx-proxy compartido** en Docker (`infra/proxy/` → `/opt/proxy`, puertos 80/443,
+certbot para HTTPS) y este proyecto en `/opt/job-machine` sin puertos publicados, unido a la red
+Docker `proxy` (alias `jobmachine-web`). Postgres no se publica. Consumo: ~350–450 MB RAM.
 
 **Backup** de la base: `./scripts/backup.sh` (en el VPS corre diario por cron).
 
@@ -98,6 +85,7 @@ job-machine/
 ├── .env.example               # variables para producción (.env real NUNCA va al repo)
 ├── .github/workflows/ci-cd.yml  # CI (tests, gitleaks) + CD (GHCR -> VPS)
 ├── scripts/                   # deploy.sh, backup.sh, vps-setup.sh (corren en el VPS)
+├── infra/proxy/               # nginx-proxy compartido del VPS (+ certbot)
 ├── engine/                    # MOTOR (GabyBot) — aún vacío, se construye al dar luz verde
 │   ├── src/
 │   │   ├── detect-ats.mjs     # detecta Greenhouse/Lever/Ashby/JazzHR/Workday por URL

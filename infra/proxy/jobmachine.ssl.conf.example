@@ -1,0 +1,40 @@
+# FASE 2: copiar a conf.d/jobmachine.conf reemplazando DOMINIO, cuando el certificado exista.
+server {
+    listen 80;
+    server_name DOMINIO;
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name DOMINIO;
+
+    ssl_certificate     /etc/letsencrypt/live/DOMINIO/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/DOMINIO/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    location / {
+        set $upstream http://jobmachine-web:80;
+        proxy_pass $upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 60s;
+    }
+}
+
+# Peticiones por IP o dominios desconocidos: cerrar conexión.
+server {
+    listen 80 default_server;
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_reject_handshake on;
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 444; }
+}

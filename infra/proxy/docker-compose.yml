@@ -1,0 +1,32 @@
+# Nginx reverse proxy COMPARTIDO del VPS (uno para todos los proyectos) + certbot.
+# Vive en /opt/proxy. Cada proyecto se une a la red externa `proxy` y aquí se le asigna
+# un server{} en conf.d/. Arranque:
+#   docker network create proxy   (una vez)
+#   docker compose up -d
+# Recargar tras cambiar conf.d:  docker compose exec nginx nginx -s reload
+name: proxy
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+    networks: [proxy]
+
+  # Solo se ejecuta bajo demanda (emitir/renovar certificados), no queda corriendo.
+  certbot:
+    image: certbot/certbot:latest
+    profiles: [tools]
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+
+networks:
+  proxy:
+    external: true
