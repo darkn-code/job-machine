@@ -1,0 +1,74 @@
+# ============================================================
+#  DATOS PERSONALES — NUNCA al repo
+# ============================================================
+# CV: todo lo de cv-master/ salvo la plantilla
+cv-master/*
+!cv-master/master.example.md
+# Cualquier documento en cualquier carpeta (CVs, cartas, Excel de seguimiento...)
+*.pdf
+*.doc
+*.docx
+*.odt
+*.rtf
+*.xls
+*.xlsx
+*.csv
+# Datos del motor (CVs generados, cola, logs, screenshots)
+engine/data/
+**/.pw-chrome/
+# Historial real de postulaciones (seed desde el Excel)
+web/backend/tracker/seed/postulaciones.json
+# Backups de la base
+backups/
+*.sql
+*.sql.gz
+*.dump
+
+# ============================================================
+#  SECRETOS
+# ============================================================
+.env
+.env.*
+*.env
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+secrets/
+*.secret
+*.token
+token.txt
+
+# ============================================================
+#  Bases de datos locales, builds, dependencias
+# ============================================================
+*.sqlite3
+*.db
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+web/frontend/dist/
+web/backend/staticfiles/
+*.tsbuildinfo
+
+# ============================================================
+#  Logs, temporales, editores, SO
+# ============================================================
+*.log
+*.stackdump
+_*.txt
+_*.png
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.playwright-mcp/
+.claude/settings.local.json

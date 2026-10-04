@@ -1,0 +1,54 @@
+# PRODUCCIÓN (VPS).
+#   cp .env.example .env   # y cambia TODAS las contraseñas/secret
+#   Con CI/CD (normal):  el VPS NO compila; baja las imágenes que GitHub Actions publicó en GHCR
+#                        (scripts/deploy.sh <tag>, lo llama el workflow). Ver docs/DEPLOY.md
+#   Manual / sin CI:     docker compose -f docker-compose.prod.yml up -d --build
+# Expone solo nginx (puerto HTTP_PORT, default 80). Postgres y Django quedan en la red interna.
+name: job-machine-prod
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Postgres liviano para VPS chico (1-2 GB)
+    command: postgres -c shared_buffers=64MB -c max_connections=30
+
+  backend:
+    image: ${IMAGE_REGISTRY:-local}/job-machine-backend:${IMAGE_TAG:-latest}
+    build: ./web/backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      DJANGO_DEBUG: "0"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: ${IMAGE_REGISTRY:-local}/job-machine-web:${IMAGE_TAG:-latest}
+    build: ./web/frontend
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

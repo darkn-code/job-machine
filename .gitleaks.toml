@@ -1,0 +1,16 @@
+# Reglas de gitleaks (CI + pre-commit local opcional). Hereda las reglas por defecto.
+[extend]
+useDefault = true
+
+# Valores de ejemplo / solo-CI que no son secretos reales
+[allowlist]
+description = "placeholders y credenciales de CI/dev"
+regexes = [
+  '''cambia-esto-por-una-cadena-larga-y-aleatoria''',
+  '''cambia-esta-contrasena''',
+  '''ci-only''',
+  '''dev-insecure-change-me''',
+]
+paths = [
+  '''package-lock\.json''',
+]
