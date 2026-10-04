@@ -63,6 +63,10 @@ if [ ! -d "$PROXY_DIR" ]; then
   cp -r "$APP_DIR/infra/proxy" "$PROXY_DIR"
 fi
 install -d "$PROXY_DIR/certbot/www" "$PROXY_DIR/certbot/conf"
+# VPS nuevo sin certificado todavía: arrancar con la versión HTTP (ver infra/proxy/README.md)
+if [ ! -d "$PROXY_DIR/certbot/conf/live/job-machine.darkn-47.com" ]; then
+  cp "$PROXY_DIR/jobmachine.http.conf.example" "$PROXY_DIR/conf.d/jobmachine.conf"
+fi
 chown -R "$DEPLOY_USER:$DEPLOY_USER" "$PROXY_DIR"
 (cd "$PROXY_DIR" && docker compose up -d)
 

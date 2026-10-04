@@ -72,13 +72,13 @@ Internet :80/:443 ──► /opt/proxy  (nginx compartido + certbot, red Docker 
    |---|---|---|
    | Secret | `VPS_SSH_KEY` | llave privada de deploy |
    | Secret | `VPS_KNOWN_HOSTS` | salida de `ssh-keyscan -H <ip>` |
-   | Variable | `VPS_HOST` | IP del VPS |
+   | Variable | `VPS_HOST` | `158.220.126.87` |
    | Variable | `VPS_USER` | `deploy` |
    | Variable | `VPS_APP_DIR` | `/opt/job-machine` |
-   | Variable | `APP_URL` | URL pública |
+   | Variable | `APP_URL` | `https://job-machine.darkn-47.com` |
    | Variable | `DEPLOY_ENABLED` | `true` |
 
-5. **Dominio + HTTPS**: pasos en [`infra/proxy/README.md`](../infra/proxy/README.md).
+5. **Dominio + HTTPS**: **https://job-machine.darkn-47.com** (Let's Encrypt, renovación por cron). Detalle en [`infra/proxy/README.md`](../infra/proxy/README.md).
 6. **Seed opcional** (historial real, no está en el repo ni en la imagen): `scp postulaciones.json deploy@<vps>:~` y
    `docker compose -f docker-compose.prod.yml exec -T backend python manage.py seed --archivo /dev/stdin < ~/postulaciones.json`.
 7. **Token de GabyBot**: `docker compose -f docker-compose.prod.yml exec backend python manage.py create_bot_token`.

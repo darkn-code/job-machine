@@ -1,0 +1,23 @@
+# Job Machine -> contenedor jobmachine-web (red `proxy`).
+# FASE 1 (sin dominio): responde por IP en :80.
+# Plantilla para un VPS nuevo SIN certificado: copiar a conf.d/jobmachine.conf, emitir el
+# certificado (README) y luego volver a la versión HTTPS de conf.d/jobmachine.conf.
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+
+    location / {
+        set $upstream http://jobmachine-web:80;
+        proxy_pass $upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 60s;
+    }
+}
