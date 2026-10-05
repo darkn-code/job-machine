@@ -1,4 +1,5 @@
 # CI/CD de Job Machine
+# Ramas: develop = desarrollo (solo CI) · main = producción (CI + deploy). Flujo: PR develop -> main.
 #   PR o push  -> secretos (gitleaks) + tests backend (Postgres) + typecheck/build frontend
 #   push main  -> además: build de imágenes Docker -> GHCR (tags :<sha> y :latest)
 #                 -> deploy al VPS por SSH (solo si la variable de repo DEPLOY_ENABLED = true)
@@ -7,7 +8,7 @@ name: CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
   workflow_dispatch:
 

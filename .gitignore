@@ -13,8 +13,8 @@ cv-master/*
 *.xls
 *.xlsx
 *.csv
-# Datos del motor (CVs generados, cola, logs, screenshots)
-engine/data/
+# Motor (GabyBot): carpeta completa fuera del repo (config, scripts y datos reales)
+engine/
 **/.pw-chrome/
 # Historial real de postulaciones (seed desde el Excel)
 web/backend/tracker/seed/postulaciones.json
@@ -72,8 +72,4 @@ desktop.ini
 !.vscode/extensions.json
 .playwright-mcp/
 .claude/settings.local.json
-engine/.secrets/
 *.token
-# Motor (GabyBot): config y scripts con datos reales de postulaciones/salario
-engine/config.json
-engine/migrate-excel.mjs

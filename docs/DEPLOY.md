@@ -18,10 +18,24 @@ Archivos: `.github/workflows/ci-cd.yml`, `scripts/deploy.sh`, `scripts/backup.sh
 
 ---
 
+## 🌿 Ramas
+
+| rama | para qué | qué corre |
+|---|---|---|
+| `develop` | desarrollo diario; aquí se hacen los cambios y llegan las PRs de Dependabot | CI (tests, typecheck, gitleaks) |
+| `main` | **producción**: solo entra por PR desde `develop` | CI + imágenes GHCR + **deploy al VPS** |
+
+```bash
+git switch develop      # trabajar aquí
+git push                # corre CI
+# listo para producción: PR develop -> main en GitHub, merge => deploy automático
+```
+
 ## 🔐 Qué NUNCA sube al repo (`.gitignore`)
 
 | qué | dónde vive |
 |---|---|
+| Todo `engine/` (motor de GabyBot: config, scripts, token, datos) | tu PC |
 | CV (`cv-master/*`, salvo `master.example.md`), cualquier `*.pdf/*.docx/*.xlsx/*.csv` | solo en tu PC |
 | Historial real (`web/backend/tracker/seed/postulaciones.json`) | tu PC (cópialo al VPS a mano si quieres el seed allá) |
 | `.env` y cualquier `.env.*` (menos `.env.example`), llaves `*.pem/*.key`, `id_*` | PC / VPS |
