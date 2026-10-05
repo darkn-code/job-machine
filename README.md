@@ -19,7 +19,7 @@ al inicio (para afinar), subiendo el nivel gradualmente.
 | **`web/`** | Panel Django + base de datos (reemplaza el Excel de seguimiento). | **DarkN con Claude Code** |
 
 El motor y el panel se comunican por **API REST** (Django + token).
-Contrato: [`docs/INTEGRATION.md`](docs/INTEGRATION.md) · Guía práctica para el bot: [`docs/API.md`](docs/API.md).
+Contrato: [`docs/INTEGRATION.md`](docs/INTEGRATION.md) · Guía práctica para el bot: [`docs/API.md`](docs/API.md) · Base de datos: [`docs/DATABASE.md`](docs/DATABASE.md).
 
 ## 🐉 Panel web (Dragon Panel)
 
@@ -79,7 +79,9 @@ job-machine/
 │   ├── REQUIREMENTS.md        # requisitos técnicos de todo el sistema
 │   ├── ENGINE.md              # diseño del motor (Playwright+Docker)
 │   ├── INTEGRATION.md         # contrato motor <-> panel Django (DB/API)
-│   └── API.md                 # guía de la API para GabyBot (curl)
+│   ├── API.md                 # guía de la API para GabyBot (curl)
+│   ├── DATABASE.md            # diagrama de la base de datos + estados
+│   └── DEPLOY.md              # CI/CD y VPS
 ├── docker-compose.yml         # dev local (Postgres + Django + Vite)
 ├── docker-compose.prod.yml    # VPS (Postgres + gunicorn + nginx)
 ├── .env.example               # variables para producción (.env real NUNCA va al repo)

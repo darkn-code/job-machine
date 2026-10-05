@@ -72,3 +72,8 @@ desktop.ini
 !.vscode/extensions.json
 .playwright-mcp/
 .claude/settings.local.json
+engine/.secrets/
+*.token
+# Motor (GabyBot): config y scripts con datos reales de postulaciones/salario
+engine/config.json
+engine/migrate-excel.mjs
