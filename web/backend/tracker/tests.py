@@ -99,3 +99,99 @@ class ContratoMotorTests(APITestCase):
         self.assertEqual(stats["kpis"]["enviadas"], 1)
         self.assertEqual(len(stats["por_dia"]), 30)
         self.assertEqual(stats["por_dia"][-1]["enviadas"], 1)
+
+    def test_match_creacion_patch_upsert_y_registro_manual(self):
+        v = self.vacante()
+        first = self.client.post("/api/postulaciones", {
+            "vacante_id": v.id, "match_porcentaje": 72.5,
+            "habilidades_coincidentes": [" Python ", "C++"],
+            "habilidades_faltantes": ["AWS"], "match_notas": "Revisión manual",
+        }, format="json")
+        self.assertEqual(first.status_code, 201, first.content)
+        self.assertEqual(first.json()["habilidades_coincidentes"], ["Python", "C++"])
+        pid = first.json()["id"]
+        patched = self.client.patch(f"/api/postulaciones/{pid}", {
+            "match_porcentaje": 85, "habilidades_faltantes": ["Azure"]
+        }, format="json")
+        self.assertEqual(patched.status_code, 200, patched.content)
+        self.client.post("/api/postulaciones", {"vacante_id": v.id, "estado": "enviada"}, format="json")
+        post = Postulacion.objects.get(pk=pid)
+        self.assertEqual(post.match_porcentaje, 85)
+        self.assertEqual(post.habilidades_coincidentes, ["Python", "C++"])
+        self.assertEqual(post.habilidades_faltantes, ["Azure"])
+        manual = self.client.post("/api/postulaciones/registrar", {
+            "empresa": "Manual", "puesto": "Dev", "match_porcentaje": 60,
+            "habilidades_faltantes": [" Go "]
+        }, format="json")
+        self.assertEqual(manual.status_code, 201, manual.content)
+        self.assertEqual(manual.json()["habilidades_faltantes"], ["Go"])
+
+    def test_match_validacion_y_auth(self):
+        p = Postulacion.objects.create(vacante=self.vacante())
+        for payload in (
+            {"match_porcentaje": -1}, {"match_porcentaje": 101},
+            {"habilidades_faltantes": "Python"},
+            {"habilidades_faltantes": [42]},
+            {"habilidades_faltantes": ["  "]},
+            {"habilidades_faltantes": ["C#", " c# "]},
+            {"habilidades_coincidentes": [" AWS "], "habilidades_faltantes": ["aws"]},
+        ):
+            response = self.client.patch(f"/api/postulaciones/{p.id}", payload, format="json")
+            self.assertEqual(response.status_code, 400, (payload, response.content))
+        self.assertEqual(self.client.patch(f"/api/postulaciones/{p.id}", {
+            "habilidades_coincidentes": ["C++"]
+        }, format="json").status_code, 200)
+        self.assertEqual(self.client.patch(f"/api/postulaciones/{p.id}", {
+            "habilidades_faltantes": [" c++ "]
+        }, format="json").status_code, 400)
+        self.client.credentials()
+        self.assertEqual(self.client.get("/api/postulaciones/habilidades").status_code, 401)
+        self.assertEqual(self.client.patch(f"/api/postulaciones/{p.id}", {
+            "match_porcentaje": 80
+        }, format="json").status_code, 401)
+
+    def test_habilidades_agrega_todas_las_filtradas_sin_paginacion(self):
+        other = Empresa.objects.create(nombre="Other")
+        a = Postulacion.objects.create(vacante=self.vacante(), estado="enviada",
+            match_porcentaje=80, habilidades_faltantes=[" AWS", "aws", "C++"],
+            habilidades_coincidentes=["Python"])
+        b = Postulacion.objects.create(vacante=self.vacante(url="https://example.com/2"),
+            estado="vista", match_porcentaje=60,
+            habilidades_faltantes=["aws", "C#"], habilidades_coincidentes=["python", "C++"])
+        Postulacion.objects.create(vacante=self.vacante(url="https://example.com/3", empresa=other),
+            estado="enviada", habilidades_faltantes=["Rust"])
+        result = self.client.get("/api/postulaciones/habilidades", {
+            "empresa": "acme", "estado": "enviada,vista", "page": 1, "page_size": 1
+        })
+        self.assertEqual(result.status_code, 200, result.content)
+        data = result.json()
+        self.assertEqual((data["total_postulaciones"], data["evaluadas"], data["match_promedio"]),
+                         (2, 2, 70.0))
+        rows = {r["habilidad"].casefold(): r for r in data["habilidades"]}
+        self.assertEqual(rows["aws"]["total"], 2)
+        self.assertEqual(rows["aws"]["faltantes"], 2)
+        self.assertEqual(rows["aws"]["postulacion_ids"], [a.id, b.id])
+        self.assertEqual(rows["c++"]["total"], 2)
+        self.assertEqual(rows["c++"]["faltantes"], 1)
+        self.assertEqual(rows["c++"]["coincidentes"], 1)
+        self.assertIn("c#", rows)
+        self.assertNotIn("rust", rows)
+
+    def test_match_sin_evaluar_y_score_cero_en_lecturas_y_resumen(self):
+        empty = Postulacion.objects.create(vacante=self.vacante())
+        zero = Postulacion.objects.create(vacante=self.vacante(url="https://example.com/zero"),
+            match_porcentaje=0, habilidades_faltantes=["C#"])
+        list_response = self.client.get("/api/postulaciones")
+        self.assertEqual(list_response.status_code, 200, list_response.content)
+        rows = {row["id"]: row for row in list_response.json()}
+        self.assertIsNone(rows[empty.id]["match_porcentaje"])
+        self.assertEqual(rows[empty.id]["habilidades_coincidentes"], [])
+        self.assertEqual(rows[empty.id]["habilidades_faltantes"], [])
+        self.assertEqual(rows[empty.id]["match_notas"], "")
+        detail = self.client.get(f"/api/postulaciones/{zero.id}")
+        self.assertEqual(detail.status_code, 200, detail.content)
+        self.assertEqual(detail.json()["match_porcentaje"], 0)
+        self.assertEqual(detail.json()["habilidades_faltantes"], ["C#"])
+        summary = self.client.get("/api/postulaciones/habilidades").json()
+        self.assertEqual((summary["total_postulaciones"], summary["evaluadas"], summary["match_promedio"]),
+                         (2, 1, 0.0))

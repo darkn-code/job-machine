@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
-import type { Empresa, Estado, Evento, Postulacion, PostulacionDetalle, Stats, Vacante } from "./types";
+import type { Empresa, Estado, Evento, Postulacion, PostulacionDetalle, ResumenHabilidades, Stats, Vacante } from "./types";
 
 // El bot actualiza la DB por su cuenta: refrescamos solos cada 30 s.
 const VIVO = { refetchInterval: 30_000 };
@@ -17,6 +17,9 @@ export const usePostulaciones = (params = "") =>
 export const usePostulacion = (id: number) =>
   useQuery({ queryKey: ["postulacion", id], queryFn: () => api<PostulacionDetalle>(`postulaciones/${id}`), ...VIVO });
 
+export const useHabilidades = () =>
+  useQuery({ queryKey: ["habilidades"], queryFn: () => api<ResumenHabilidades>("postulaciones/habilidades"), ...VIVO });
+
 export const useVacantes = (params = "") =>
   useQuery({
     queryKey: ["vacantes", params],
@@ -31,7 +34,7 @@ export const useEmpresas = () =>
 function useRefrescar() {
   const qc = useQueryClient();
   return () => {
-    for (const k of ["stats", "postulaciones", "postulacion", "vacantes", "empresas"]) {
+    for (const k of ["stats", "postulaciones", "postulacion", "vacantes", "empresas", "habilidades"]) {
       qc.invalidateQueries({ queryKey: [k] });
     }
   };

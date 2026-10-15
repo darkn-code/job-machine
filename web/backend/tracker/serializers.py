@@ -1,3 +1,5 @@
+import math
+
 from rest_framework import serializers
 
 from .models import CVGenerado, Empresa, Evento, Postulacion, Vacante
@@ -15,6 +17,13 @@ class EmpresaField(serializers.Field):
             raise serializers.ValidationError("La empresa es obligatoria.")
         empresa = Empresa.objects.filter(nombre__iexact=nombre).first()
         return empresa or Empresa.objects.create(nombre=nombre)
+
+
+class HabilidadField(serializers.CharField):
+    def to_internal_value(self, data):
+        if not isinstance(data, str):
+            raise serializers.ValidationError("Cada habilidad debe ser texto.")
+        return super().to_internal_value(data)
 
 
 class EmpresaSerializer(serializers.ModelSerializer):
@@ -85,12 +94,49 @@ class PostulacionSerializer(serializers.ModelSerializer):
     vacante_id = serializers.PrimaryKeyRelatedField(
         source="vacante", queryset=Vacante.objects.all(), write_only=True
     )
+    match_porcentaje = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
+    habilidades_coincidentes = serializers.ListField(
+        child=HabilidadField(allow_blank=False, trim_whitespace=True), required=False
+    )
+    habilidades_faltantes = serializers.ListField(
+        child=HabilidadField(allow_blank=False, trim_whitespace=True), required=False
+    )
+
+    def validate_match_porcentaje(self, value):
+        if value is not None and not math.isfinite(value):
+            raise serializers.ValidationError("Debe ser un número finito entre 0 y 100.")
+        return value
+
+    def validate(self, attrs):
+        def normalize(items):
+            seen = set()
+            result = []
+            for item in items:
+                label = " ".join(item.split())
+                key = label.casefold()
+                if not label or key in seen:
+                    raise serializers.ValidationError("Cada habilidad debe tener texto y ser única en su lista.")
+                seen.add(key)
+                result.append(label)
+            return result, seen
+
+        for field in ("habilidades_coincidentes", "habilidades_faltantes"):
+            if field in attrs:
+                attrs[field], _ = normalize(attrs[field])
+        matched = attrs.get("habilidades_coincidentes", getattr(self.instance, "habilidades_coincidentes", []))
+        missing = attrs.get("habilidades_faltantes", getattr(self.instance, "habilidades_faltantes", []))
+        _, matched_keys = normalize(matched)
+        _, missing_keys = normalize(missing)
+        if matched_keys & missing_keys:
+            raise serializers.ValidationError({"habilidades_faltantes": "Una habilidad no puede estar también en coincidencias."})
+        return attrs
 
     class Meta:
         model = Postulacion
         fields = [
             "id", "vacante", "vacante_id", "estado", "fecha_envio", "cv_pdf", "keywords_usadas",
-            "captcha_link", "screenshot", "notas", "brechas", "proxima_accion",
+            "captcha_link", "screenshot", "notas", "brechas", "match_porcentaje",
+            "habilidades_coincidentes", "habilidades_faltantes", "match_notas", "proxima_accion",
             "proximo_seguimiento", "creado", "actualizado",
         ]
         # vacante_id es "upsert" en la vista: no validar unicidad aquí.
@@ -106,6 +152,21 @@ class PostulacionDetalleSerializer(PostulacionSerializer):
 
     def get_eventos(self, obj):
         return EventoSerializer(obj.eventos.all(), many=True).data
+
+
+class HabilidadFrecuenciaSerializer(serializers.Serializer):
+    habilidad = serializers.CharField()
+    total = serializers.IntegerField()
+    faltantes = serializers.IntegerField()
+    coincidentes = serializers.IntegerField()
+    postulacion_ids = serializers.ListField(child=serializers.IntegerField())
+
+
+class HabilidadesResumenSerializer(serializers.Serializer):
+    total_postulaciones = serializers.IntegerField()
+    evaluadas = serializers.IntegerField()
+    match_promedio = serializers.FloatField(allow_null=True)
+    habilidades = HabilidadFrecuenciaSerializer(many=True)
 
 
 class RegistroManualSerializer(serializers.Serializer):
@@ -126,8 +187,23 @@ class RegistroManualSerializer(serializers.Serializer):
     fecha_envio = serializers.DateTimeField(required=False, allow_null=True)
     notas = serializers.CharField(required=False, allow_blank=True)
     brechas = serializers.CharField(required=False, allow_blank=True)
+    match_porcentaje = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
+    habilidades_coincidentes = serializers.ListField(child=HabilidadField(allow_blank=False), required=False)
+    habilidades_faltantes = serializers.ListField(child=HabilidadField(allow_blank=False), required=False)
+    match_notas = serializers.CharField(required=False, allow_blank=True)
     proxima_accion = serializers.CharField(required=False, allow_blank=True)
     proximo_seguimiento = serializers.DateTimeField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        match_fields = {k: v for k, v in attrs.items() if k in (
+            "match_porcentaje", "habilidades_coincidentes", "habilidades_faltantes", "match_notas"
+        )}
+        validated = PostulacionSerializer().validate(match_fields)
+        attrs.update(validated)
+        score = attrs.get("match_porcentaje")
+        if score is not None and not math.isfinite(score):
+            raise serializers.ValidationError({"match_porcentaje": "Debe ser un número finito entre 0 y 100."})
+        return attrs
 
 
 class EventoSerializer(serializers.ModelSerializer):

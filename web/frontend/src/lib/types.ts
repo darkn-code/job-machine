@@ -39,10 +39,27 @@ export interface Postulacion {
   screenshot: string | null;
   notas: string;
   brechas: string;
+  match_porcentaje: number | null;
+  habilidades_coincidentes: string[];
+  habilidades_faltantes: string[];
+  match_notas: string;
   proxima_accion: string;
   proximo_seguimiento: string | null;
   creado: string;
   actualizado: string;
+}
+
+export interface ResumenHabilidades {
+  total_postulaciones: number;
+  evaluadas: number;
+  match_promedio: number | null;
+  habilidades: {
+    habilidad: string;
+    total: number;
+    faltantes: number;
+    coincidentes: number;
+    postulacion_ids: number[];
+  }[];
 }
 
 export interface Evento {

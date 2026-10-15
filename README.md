@@ -34,6 +34,23 @@ Django 5 + DRF + PostgreSQL 16 (backend) · React + Vite + Tailwind + Recharts (
 - **Empresas**: cuántas veces postulaste a cada una y cómo va.
 - Se refresca solo cada 30 s, así ves lo que el bot va actualizando.
 
+### Match y habilidades
+
+En **Postulaciones**, la tabla y el Kanban muestran el porcentaje de match; puedes
+ordenar la tabla por mayor match. Abre una postulación y usa **Match y habilidades →
+Editar** para guardar el porcentaje, las habilidades coincidentes, las faltantes y
+las notas de evaluación. Un porcentaje vacío significa **sin evaluar**; 0 es una
+evaluación válida. El porcentaje lo registra una persona o el bot, sin cálculo automático.
+
+La vista **Habilidades** reúne todas las postulaciones y permite ordenar por las
+habilidades más frecuentes o las que más faltan. Expande una habilidad para abrir
+las postulaciones donde aparece. Los registros anteriores conservan sus datos y
+empiezan sin evaluación.
+
+La API expone estos campos en `GET/PATCH /api/postulaciones/<id>` y el resumen en
+`GET /api/postulaciones/habilidades`; también acepta evaluaciones al crear o registrar
+postulaciones. Autenticación y ejemplos en [docs/API.md](docs/API.md).
+
 ### Arrancar en local (desarrollo)
 
 Requisito: Docker Desktop corriendo.

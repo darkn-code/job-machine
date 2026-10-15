@@ -112,6 +112,7 @@ Todas aceptan con o sin `/` final.
 | POST | `/api/vacantes/<id>/aprobar` · `/descartar` | lo que hace DarkN en el panel |
 | GET/POST | `/api/postulaciones` | listar (`?estado=enviada,vista&empresa=&ats=&desde=&hasta=&q=&ordering=-fecha_envio`) / **contrato** upsert |
 | GET/PATCH | `/api/postulaciones/<id>` | detalle (incluye `eventos`) / **contrato** actualizar |
+| GET | `/api/postulaciones/habilidades` | frecuencia de habilidades en todas las postulaciones filtradas |
 | POST | `/api/postulaciones/registrar` | crea vacante + postulación de una (postulaciones hechas a mano) |
 | GET/POST | `/api/eventos` | timeline / reportar correo o nota |
 | GET | `/api/empresas` | empresas con conteos (vacantes, enviadas, activas, entrevistas) |
@@ -119,6 +120,49 @@ Todas aceptan con o sin `/` final.
 | GET/POST | `/api/cvs` | historial de CVs generados (opcional) |
 
 Paginación: sin `?page=` devuelve la lista completa; con `?page=1&page_size=50` pagina.
+
+## Match y habilidades por postulación
+
+`POST /api/postulaciones` (incluido el upsert), `PATCH /api/postulaciones/<id>` y
+`POST /api/postulaciones/registrar` aceptan estos campos opcionales:
+
+```json
+{
+  "match_porcentaje": 78.5,
+  "habilidades_coincidentes": ["Python", "C++"],
+  "habilidades_faltantes": ["AWS", "Kubernetes"],
+  "match_notas": "Evaluación manual contra los requisitos de la vacante"
+}
+```
+
+Las lecturas de postulaciones devuelven los cuatro campos. `match_porcentaje` va de 0 a
+100 y es `null` mientras no haya evaluación. Las listas empiezan vacías y las notas como
+texto vacío. El porcentaje lo suministra una persona o el bot; el servidor no lo calcula
+ni infiere habilidades de la descripción, `keywords_usadas` o `brechas`. Una actualización
+parcial conserva los campos omitidos. Se rechazan listas que no sean arrays de textos,
+habilidades vacías o repetidas, y habilidades presentes a la vez en coincidencias y faltantes.
+Los espacios se normalizan; la comparación ignora mayúsculas, conservando la forma escrita.
+
+`GET /api/postulaciones/habilidades` acepta los mismos filtros que la lista de
+postulaciones (`estado`, `empresa`, `empresa_id`, `ats`, `desde`, `hasta`, `q`). Responde:
+
+```json
+{
+  "total_postulaciones": 2,
+  "evaluadas": 1,
+  "match_promedio": 78.5,
+  "habilidades": [
+    {"habilidad": "AWS", "total": 2, "faltantes": 2, "coincidentes": 0, "postulacion_ids": [4, 7]}
+  ]
+}
+```
+
+`evaluadas` cuenta scores distintos de `null`, incluso 0; `match_promedio` es `null` si
+no hay ninguna. `total` cuenta postulaciones únicas donde figura la habilidad, sea
+coincidente o faltante. Se agrupa por espacios y mayúsculas sin eliminar símbolos como
+`C++` o `C#`, y cada lista cuenta una habilidad una vez por postulación. Se ordena por
+`total` descendente y nombre. El agregado cubre **todas** las postulaciones filtradas;
+`page` y `page_size` no lo limitan.
 
 Para consultar el estado como "resumen", `GET /api/stats` → `kpis` tiene todo
 (enviadas, semana, entrevistas, tasa de respuesta, captchas, cola del motor…).
