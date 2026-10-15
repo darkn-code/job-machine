@@ -8,6 +8,7 @@ import { fecha, fechaHora, fromLocalInput, salario, toLocalInput } from "../lib/
 import { useActualizarPostulacion, useCambiarEstado, useCrearEvento, usePostulacion } from "../lib/queries";
 import type { Estado, PostulacionDetalle as Detalle } from "../lib/types";
 import { EventoItem } from "./Dashboard";
+import { MatchBadge, MatchEditor } from "../components/Match";
 
 function Dato({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -38,6 +39,7 @@ export function PostulacionDetalle() {
             <h1 className="mt-1 font-display text-2xl font-bold text-txt sm:text-3xl">{p.vacante.puesto}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <EstadoBadge estado={p.estado} />
+              <MatchBadge valor={p.match_porcentaje} />
               <AtsTag ats={ATS_LABEL[p.vacante.ats] ?? p.vacante.ats} />
               <span className="text-xs text-txt-3">Enviada {fecha(p.fecha_envio)}</span>
             </div>
@@ -96,6 +98,7 @@ export function PostulacionDetalle() {
             )}
           </Panel>
 
+          <MatchEditor key={p.id} p={p} />
           <Seguimiento p={p} />
         </div>
 

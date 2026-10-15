@@ -51,6 +51,10 @@ erDiagram
         varchar screenshot
         text notas
         text brechas
+        double match_porcentaje "nullable, 0-100"
+        jsonb habilidades_coincidentes "lista"
+        jsonb habilidades_faltantes "lista"
+        text match_notas
         varchar proxima_accion
         timestamptz proximo_seguimiento
         timestamptz creado
@@ -93,6 +97,11 @@ erDiagram
 ```
 
 Borrados en cascada: borrar una **Empresa** borra sus vacantes → postulaciones → eventos y CVs.
+
+La migración `0002_postulacion_match` añade las cuatro columnas sin modificar filas previas:
+`match_porcentaje` queda `NULL` (sin evaluar), ambas listas quedan vacías y `match_notas`
+queda vacío. El score y las listas son datos aportados por una persona o el bot mediante
+API; la base no calcula compatibilidad a partir de la vacante.
 
 `AUTH_USER`/`AUTHTOKEN_TOKEN` son tablas de Django (simplificadas aquí); no se relacionan con el
 tracker por FK: el usuario que hace un cambio queda como texto en `Evento.actor`.

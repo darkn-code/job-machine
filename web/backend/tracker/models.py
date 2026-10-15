@@ -5,6 +5,21 @@ from django.db import models
 from django.utils import timezone
 
 
+class HabilidadMejora(models.Model):
+    class Estado(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        EN_PROGRESO = "en_progreso", "En progreso"
+        APRENDIDA = "aprendida", "Aprendida"
+
+    nombre = models.CharField(max_length=120, unique=True)
+    notas = models.TextField(blank=True)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE)
+
+    class Meta:
+        ordering = ["nombre"]
+        constraints = [models.UniqueConstraint(models.functions.Lower("nombre"), name="habilidad_mejora_nombre_ci")]
+
+
 class Empresa(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
     web = models.URLField(blank=True)
@@ -112,6 +127,10 @@ class Postulacion(models.Model):
     screenshot = models.CharField(max_length=500, null=True, blank=True)
     notas = models.TextField(blank=True)
     brechas = models.TextField(blank=True)
+    match_porcentaje = models.FloatField(null=True, blank=True)
+    habilidades_coincidentes = models.JSONField(default=list, blank=True)
+    habilidades_faltantes = models.JSONField(default=list, blank=True)
+    match_notas = models.TextField(blank=True)
     proxima_accion = models.CharField(max_length=300, blank=True)
     proximo_seguimiento = models.DateTimeField(null=True, blank=True)
     creado = models.DateTimeField(auto_now_add=True)

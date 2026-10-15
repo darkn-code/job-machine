@@ -15,7 +15,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from . import serializers as s
-from .models import CVGenerado, Empresa, Evento, Postulacion, Vacante
+from .models import CVGenerado, Empresa, Evento, HabilidadMejora, Postulacion, Vacante
 
 
 def actor_de(request):
@@ -49,6 +49,12 @@ def me(request):
 
 
 # ---------------------------------------------------------------- empresas
+
+class HabilidadMejoraViewSet(viewsets.ModelViewSet):
+    queryset = HabilidadMejora.objects.all()
+    serializer_class = s.HabilidadMejoraSerializer
+    pagination_class = None
+
 
 class EmpresaViewSet(viewsets.ModelViewSet):
     serializer_class = s.EmpresaSerializer
@@ -181,13 +187,53 @@ class PostulacionViewSet(viewsets.ModelViewSet):
         serializer.instance._actor = actor_de(self.request)
         serializer.save()
 
+    @extend_schema(responses=s.HabilidadesResumenSerializer)
+    @action(detail=False, methods=["get"])
+    def habilidades(self, request):
+        """Frecuencia de habilidades en todas las postulaciones que cumplen los filtros."""
+        posts = self.filter_queryset(self.get_queryset()).order_by("id")
+        counts = {}
+        total = evaluadas = 0
+        score_sum = 0
+        for post in posts.iterator():
+            total += 1
+            if post.match_porcentaje is not None:
+                evaluadas += 1
+                score_sum += post.match_porcentaje
+            for field, counter in (("habilidades_faltantes", "faltantes"),
+                                   ("habilidades_coincidentes", "coincidentes")):
+                per_post = set()
+                for raw in getattr(post, field):
+                    label = " ".join(raw.split())
+                    key = label.casefold()
+                    if not key or key in per_post:
+                        continue
+                    per_post.add(key)
+                    entry = counts.setdefault(key, {
+                        "habilidad": label, "total": 0, "faltantes": 0,
+                        "coincidentes": 0, "postulacion_ids": [],
+                    })
+                    entry[counter] += 1
+                    if post.id not in entry["postulacion_ids"]:
+                        entry["total"] += 1
+                        entry["postulacion_ids"].append(post.id)
+        habilidades = sorted(counts.values(), key=lambda row: (-row["total"], row["habilidad"].casefold()))
+        return Response({
+            "total_postulaciones": total,
+            "evaluadas": evaluadas,
+            "match_promedio": round(score_sum / evaluadas, 1) if evaluadas else None,
+            "habilidades": habilidades,
+        })
+
     @action(detail=False, methods=["post"])
     def registrar(self, request):
         """Registra a mano una postulación (crea empresa/vacante si hace falta)."""
         ser = s.RegistroManualSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         d = dict(ser.validated_data)
-        campos_post = ["estado", "fecha_envio", "notas", "brechas", "proxima_accion", "proximo_seguimiento"]
+        campos_post = ["estado", "fecha_envio", "notas", "brechas", "match_porcentaje",
+                       "habilidades_coincidentes", "habilidades_faltantes", "match_notas",
+                       "proxima_accion", "proximo_seguimiento"]
         datos_post = {k: d.pop(k) for k in campos_post if k in d}
         empresa = s.EmpresaField().to_internal_value(d.pop("empresa"))
         url = (d.pop("url", None) or "").strip() or None

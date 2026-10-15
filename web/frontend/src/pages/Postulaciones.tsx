@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { ExternalLink, Columns3, Plus, Rows3, Search } from "lucide-react";
+import { ExternalLink, Columns3, Plus, Rows3, Search, Target } from "lucide-react";
 import { useMemo, useState, type DragEvent } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { AtsTag, Empty, ErrorBox, EstadoBadge, Loading, PageHeader } from "../components/ui";
@@ -7,8 +7,9 @@ import { ATS_LABEL, ESTADO, ESTADOS, KANBAN } from "../lib/estados";
 import { diasDesde, fecha, salario } from "../lib/format";
 import { useCambiarEstado, usePostulaciones } from "../lib/queries";
 import type { Estado, Postulacion } from "../lib/types";
+import { MatchBadge, ResumenHabilidades } from "../components/Match";
 
-type Vista = "tabla" | "kanban";
+type Vista = "tabla" | "kanban" | "habilidades";
 
 function leerVista(): Vista {
   try {
@@ -22,15 +23,21 @@ export function Postulaciones() {
   const { data, isLoading, error } = usePostulaciones();
   const { abrirNueva } = useOutletContext<{ abrirNueva: () => void }>();
   const [params, setParams] = useSearchParams();
-  const [vista, setVistaState] = useState<Vista>(leerVista);
+  const [vistaGuardada, setVistaState] = useState<Vista>(leerVista);
+  const vista = params.get("vista") === "habilidades" ? "habilidades" : vistaGuardada;
   const q = params.get("q") ?? "";
   const estados = (params.get("estado") ?? "").split(",").filter(Boolean) as Estado[];
   const ats = params.get("ats") ?? "";
   const orden = params.get("orden") ?? "reciente";
 
   const setVista = (v: Vista) => {
-    setVistaState(v);
-    try { localStorage.setItem("jm_vista", v); } catch { /* sin storage */ }
+    if (v !== "habilidades") setVistaState(v);
+    const p = new URLSearchParams(params);
+    if (v === "habilidades") p.set("vista", v); else p.delete("vista");
+    setParams(p, { replace: true });
+    if (v !== "habilidades") {
+      try { localStorage.setItem("jm_vista", v); } catch { /* sin storage */ }
+    }
   };
   const setParam = (k: string, v: string) => {
     const p = new URLSearchParams(params);
@@ -55,6 +62,7 @@ export function Postulaciones() {
       salario: (a, b) => (b.vacante.salario_max ?? 0) - (a.vacante.salario_max ?? 0),
       seguimiento: (a, b) => (ts(a.proximo_seguimiento) || Infinity) - (ts(b.proximo_seguimiento) || Infinity),
       empresa: (a, b) => a.vacante.empresa.localeCompare(b.vacante.empresa),
+      match: (a, b) => (b.match_porcentaje ?? -1) - (a.match_porcentaje ?? -1),
     };
     return list.sort(sorters[orden] ?? sorters.reciente);
   }, [data, q, estados, ats, orden]);
@@ -71,17 +79,18 @@ export function Postulaciones() {
     <>
       <PageHeader
         title="Postulaciones"
-        subtitle={data ? `${filtradas.length} de ${data.length}` : undefined}
+        subtitle={vista === "habilidades" ? "Match y habilidades de todas tus postulaciones" : data ? `${filtradas.length} de ${data.length}` : undefined}
         actions={
           <>
             <div className="flex border border-ink-600" role="group" aria-label="Vista">
-              {(["tabla", "kanban"] as Vista[]).map((v) => (
+              {(["tabla", "kanban", "habilidades"] as Vista[]).map((v) => (
                 <button
                   key={v}
                   onClick={() => setVista(v)}
+                  aria-pressed={vista === v}
                   className={clsx("flex items-center gap-1.5 px-3 py-2 font-display text-sm font-bold uppercase tracking-wider", vista === v ? "bg-dragon-500 text-white" : "text-txt-2 hover:text-txt")}
                 >
-                  {v === "tabla" ? <Rows3 size={15} /> : <Columns3 size={15} />} {v}
+                  {v === "tabla" ? <Rows3 size={15} /> : v === "kanban" ? <Columns3 size={15} /> : <Target size={15} />} {v}
                 </button>
               ))}
             </div>
@@ -91,7 +100,7 @@ export function Postulaciones() {
       />
 
       {/* Filtros: una fila sobre los datos */}
-      <div className="panel mb-5 space-y-3 p-4">
+      {vista !== "habilidades" && <div className="panel mb-5 space-y-3 p-4">
         <div className="flex flex-wrap gap-3">
           <div className="relative min-w-56 flex-1">
             <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-txt-3" />
@@ -107,6 +116,7 @@ export function Postulaciones() {
             <option value="seguimiento">Próximo seguimiento</option>
             <option value="salario">Mayor salario</option>
             <option value="empresa">Empresa A-Z</option>
+            <option value="match">Mayor match</option>
           </select>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -129,9 +139,9 @@ export function Postulaciones() {
             <button className="px-2 text-xs text-dragon-400 hover:underline" onClick={() => setParams({}, { replace: true })}>Limpiar filtros</button>
           )}
         </div>
-      </div>
+      </div>}
 
-      {isLoading ? <Loading /> : error ? <ErrorBox error={error} /> : filtradas.length === 0 ? (
+      {vista === "habilidades" ? <ResumenHabilidades postulaciones={data ?? []} /> : isLoading ? <Loading /> : error ? <ErrorBox error={error} /> : filtradas.length === 0 ? (
         <div className="panel"><Empty title="Nada por aquí">Prueba con otros filtros o registra una postulación nueva.</Empty></div>
       ) : vista === "tabla" ? <Tabla items={filtradas} /> : <Kanban items={filtradas} />}
     </>
@@ -161,6 +171,7 @@ function Tabla({ items }: { items: Postulacion[] }) {
           <tr className="border-b border-ink-600 text-left text-[11px] uppercase tracking-[0.12em] text-txt-3">
             <th className="px-4 py-3 font-semibold">Empresa / puesto</th>
             <th className="px-3 py-3 font-semibold">Estado</th>
+            <th className="px-3 py-3 font-semibold">Match</th>
             <th className="px-3 py-3 font-semibold">Enviada</th>
             <th className="px-3 py-3 font-semibold">Salario</th>
             <th className="px-3 py-3 font-semibold">Plataforma</th>
@@ -182,6 +193,7 @@ function Tabla({ items }: { items: Postulacion[] }) {
                   </Link>
                 </td>
                 <td className="px-3 py-3"><EstadoSelect p={p} /></td>
+                <td className="px-3 py-3"><Link to={`/postulaciones/${p.id}`} aria-label={`Ver match de ${p.vacante.empresa}`}><MatchBadge valor={p.match_porcentaje} /></Link></td>
                 <td className="px-3 py-3 whitespace-nowrap">
                   <span className="text-txt-2">{fecha(p.fecha_envio)}</span>
                   {dias !== null && <span className="block text-[11px] text-txt-3">hace {dias} d</span>}
@@ -249,6 +261,7 @@ function Kanban({ items }: { items: Postulacion[] }) {
                   >
                     <p className="font-semibold text-txt">{p.vacante.empresa}</p>
                     <p className="mt-0.5 line-clamp-2 text-xs text-txt-2">{p.vacante.puesto}</p>
+                    <div className="mt-2"><MatchBadge valor={p.match_porcentaje} /></div>
                     <div className="mt-2 flex items-center justify-between text-[11px] text-txt-3">
                       <span>{fecha(p.fecha_envio)}</span>
                       <AtsTag ats={ATS_LABEL[p.vacante.ats] ?? p.vacante.ats} />
@@ -266,7 +279,7 @@ function Kanban({ items }: { items: Postulacion[] }) {
           <div className="mt-2 flex flex-wrap gap-2">
             {otros.map((p) => (
               <Link key={p.id} to={`/postulaciones/${p.id}`} className="flex items-center gap-2 border border-ink-600 px-2 py-1 text-xs hover:border-dragon-600">
-                {p.vacante.empresa} <EstadoBadge estado={p.estado} />
+                {p.vacante.empresa} <EstadoBadge estado={p.estado} /> <MatchBadge valor={p.match_porcentaje} />
               </Link>
             ))}
           </div>

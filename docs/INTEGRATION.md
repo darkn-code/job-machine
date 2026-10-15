@@ -137,6 +137,16 @@ enviada ──(respuesta empresa)──> vista | entrevista | oferta | rechazada
 6. **`GET /api/stats`** para resúmenes; **`POST /api/postulaciones/registrar`** para
    postulaciones hechas a mano.
 7. El campo `empresa` viaja como **texto** (nombre); el panel crea la empresa si no existe.
+8. **Match por postulación:** `POST /api/postulaciones` (también en upsert),
+   `PATCH /api/postulaciones/<id>` y `POST /api/postulaciones/registrar` aceptan
+   `match_porcentaje` (número entre 0 y 100, `null` sin evaluar),
+   `habilidades_coincidentes` y `habilidades_faltantes` (arrays de textos), y
+   `match_notas` (texto). El motor o una persona aporta el score y las habilidades;
+   el panel los persiste sin inferirlos. Campos omitidos en un upsert conservan su valor.
+   No se permite repetir una habilidad entre las dos listas, ignorando espacios y
+   mayúsculas. `GET /api/postulaciones/habilidades` agrega frecuencia y promedio sobre
+   todas las postulaciones que cumplen los filtros, sin limitarse a la página solicitada.
+   Forma de respuesta y semántica completas: [`docs/API.md`](API.md).
 
 ## Qué necesita GabyBot de DarkN cuando el panel esté listo
 

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Building2, Flame, LayoutDashboard, ListChecks, LogOut, Menu, Plus, Radar, X } from "lucide-react";
+import { Building2, Flame, GraduationCap, LayoutDashboard, ListChecks, LogOut, Menu, Plus, Radar, X } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useStats } from "../lib/queries";
@@ -16,6 +16,7 @@ export function Layout({ username, onLogout }: { username: string; onLogout: () 
   const nav = [
     { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
     { to: "/postulaciones", label: "Postulaciones", icon: ListChecks },
+    { to: "/habilidades-a-mejorar", label: "Habilidades a mejorar", icon: GraduationCap },
     { to: "/captchas", label: "Captchas", icon: Flame, badge: k?.captchas, hot: true },
     { to: "/vacantes", label: "Vacantes", icon: Radar, badge: k?.vacantes_por_revisar },
     { to: "/empresas", label: "Empresas", icon: Building2 },
