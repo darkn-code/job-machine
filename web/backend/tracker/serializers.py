@@ -2,7 +2,7 @@ import math
 
 from rest_framework import serializers
 
-from .models import CVGenerado, Empresa, Evento, Postulacion, Vacante
+from .models import CVGenerado, Empresa, Evento, HabilidadMejora, Postulacion, Vacante
 
 
 class EmpresaField(serializers.Field):
@@ -24,6 +24,23 @@ class HabilidadField(serializers.CharField):
         if not isinstance(data, str):
             raise serializers.ValidationError("Cada habilidad debe ser texto.")
         return super().to_internal_value(data)
+
+
+class HabilidadMejoraSerializer(serializers.ModelSerializer):
+    nombre = HabilidadField(max_length=120)
+
+    class Meta:
+        model = HabilidadMejora
+        fields = ["id", "nombre", "notas", "estado"]
+
+    def validate_nombre(self, value):
+        value = " ".join(value.split())
+        existentes = HabilidadMejora.objects.filter(nombre__iexact=value)
+        if self.instance:
+            existentes = existentes.exclude(pk=self.instance.pk)
+        if existentes.exists():
+            raise serializers.ValidationError("Esta habilidad ya está en tu lista.")
+        return value
 
 
 class EmpresaSerializer(serializers.ModelSerializer):

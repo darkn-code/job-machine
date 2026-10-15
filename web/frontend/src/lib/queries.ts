@@ -1,9 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
-import type { Empresa, Estado, Evento, Postulacion, PostulacionDetalle, ResumenHabilidades, Stats, Vacante } from "./types";
+import type { Empresa, Estado, Evento, HabilidadMejora, Postulacion, PostulacionDetalle, ResumenHabilidades, Stats, Vacante } from "./types";
 
 // El bot actualiza la DB por su cuenta: refrescamos solos cada 30 s.
 const VIVO = { refetchInterval: 30_000 };
+
+export const useHabilidadesMejora = () => useQuery({ queryKey: ["habilidades-mejora"], queryFn: () => api<HabilidadMejora[]>("habilidades-mejora"), ...VIVO });
+
+export function useGuardarHabilidadMejora() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: Partial<HabilidadMejora>) => api<HabilidadMejora>(`habilidades-mejora${id ? `/${id}` : ""}`, { method: id ? "PATCH" : "POST", body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["habilidades-mejora"] }),
+  });
+}
+
+export function useEliminarHabilidadMejora() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api<void>(`habilidades-mejora/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["habilidades-mejora"] }),
+  });
+}
 
 export const useStats = () => useQuery({ queryKey: ["stats"], queryFn: () => api<Stats>("stats"), ...VIVO });
 

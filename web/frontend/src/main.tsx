@@ -13,6 +13,7 @@ import { Login } from "./pages/Login";
 import { PostulacionDetalle } from "./pages/PostulacionDetalle";
 import { Postulaciones } from "./pages/Postulaciones";
 import { Vacantes } from "./pages/Vacantes";
+import { HabilidadesAMejorar } from "./pages/HabilidadesAMejorar";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 10_000, retry: 1, refetchOnWindowFocus: true } },
@@ -47,6 +48,7 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="postulaciones" element={<Postulaciones />} />
         <Route path="postulaciones/:id" element={<PostulacionDetalle />} />
+        <Route path="habilidades-a-mejorar" element={<HabilidadesAMejorar />} />
         <Route path="captchas" element={<Captchas />} />
         <Route path="vacantes" element={<Vacantes />} />
         <Route path="empresas" element={<Empresas />} />

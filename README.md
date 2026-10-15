@@ -51,6 +51,13 @@ La API expone estos campos en `GET/PATCH /api/postulaciones/<id>` y el resumen e
 `GET /api/postulaciones/habilidades`; también acepta evaluaciones al crear o registrar
 postulaciones. Autenticación y ejemplos en [docs/API.md](docs/API.md).
 
+En el menú **Habilidades a mejorar**, tu plan de aprendizaje permite agregar habilidades
+manualmente, editar notas y marcar cada una como pendiente, en progreso o aprendida.
+La lista se guarda en la base de datos. Debajo aparecen las habilidades faltantes de
+las postulaciones, ordenadas por frecuencia, con enlaces a las postulaciones donde faltan.
+La lista propia se administra mediante `GET/POST /api/habilidades-mejora` y
+`GET/PATCH/DELETE /api/habilidades-mejora/<id>` (requiere autenticación).
+
 ### Arrancar en local (desarrollo)
 
 Requisito: Docker Desktop corriendo.

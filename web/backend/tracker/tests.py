@@ -6,6 +6,37 @@ from rest_framework.test import APITestCase
 from .models import Empresa, Evento, Postulacion, Vacante
 
 
+class HabilidadesMejoraTests(APITestCase):
+    def setUp(self):
+        self.client.force_authenticate(User.objects.create(username="aprendiz"))
+
+    def test_lista_persistente_edicion_y_eliminacion(self):
+        created = self.client.post("/api/habilidades-mejora", {
+            "nombre": " Kubernetes ", "notas": "Practicar despliegues",
+        }, format="json")
+        self.assertEqual(created.status_code, 201)
+        row = created.json()
+        self.assertEqual(row["nombre"], "Kubernetes")
+        self.assertEqual(row["estado"], "pendiente")
+        url = f"/api/habilidades-mejora/{row['id']}"
+        self.assertEqual(self.client.patch(url, {"estado": "en_progreso"}, format="json").status_code, 200)
+        self.assertEqual(self.client.get("/api/habilidades-mejora").json()[0]["estado"], "en_progreso")
+        self.assertEqual(self.client.patch(url, {"estado": "aprendida"}, format="json").status_code, 200)
+        self.assertEqual(self.client.delete(url).status_code, 204)
+        self.assertEqual(self.client.get("/api/habilidades-mejora").json(), [])
+
+    def test_valida_duplicados_nombre_y_estado(self):
+        self.client.post("/api/habilidades-mejora", {"nombre": "AWS Cloud"}, format="json")
+        for body in ({"nombre": " aws   cloud "}, {"nombre": " "}, {"nombre": 42},
+                     {"nombre": "Docker", "estado": "inventado"}):
+            self.assertEqual(self.client.post("/api/habilidades-mejora", body, format="json").status_code, 400)
+
+    def test_requiere_autenticacion(self):
+        self.client.force_authenticate(None)
+        self.assertEqual(self.client.get("/api/habilidades-mejora").status_code, 401)
+        self.assertEqual(self.client.post("/api/habilidades-mejora", {"nombre": "AWS"}).status_code, 401)
+
+
 class ContratoMotorTests(APITestCase):
     def setUp(self):
         bot = User.objects.create(username="gabybot")

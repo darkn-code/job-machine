@@ -49,6 +49,13 @@ export interface Postulacion {
   actualizado: string;
 }
 
+export interface HabilidadMejora {
+  id: number;
+  nombre: string;
+  notas: string;
+  estado: "pendiente" | "en_progreso" | "aprendida";
+}
+
 export interface ResumenHabilidades {
   total_postulaciones: number;
   evaluadas: number;

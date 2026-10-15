@@ -15,7 +15,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from . import serializers as s
-from .models import CVGenerado, Empresa, Evento, Postulacion, Vacante
+from .models import CVGenerado, Empresa, Evento, HabilidadMejora, Postulacion, Vacante
 
 
 def actor_de(request):
@@ -49,6 +49,12 @@ def me(request):
 
 
 # ---------------------------------------------------------------- empresas
+
+class HabilidadMejoraViewSet(viewsets.ModelViewSet):
+    queryset = HabilidadMejora.objects.all()
+    serializer_class = s.HabilidadMejoraSerializer
+    pagination_class = None
+
 
 class EmpresaViewSet(viewsets.ModelViewSet):
     serializer_class = s.EmpresaSerializer

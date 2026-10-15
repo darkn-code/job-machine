@@ -8,6 +8,7 @@ router = DefaultRouter()
 # Acepta con y sin slash final: /api/postulaciones y /api/postulaciones/
 router.trailing_slash = "/?"
 router.register("empresas", views.EmpresaViewSet, basename="empresa")
+router.register("habilidades-mejora", views.HabilidadMejoraViewSet, basename="habilidad-mejora")
 router.register("vacantes", views.VacanteViewSet, basename="vacante")
 router.register("postulaciones", views.PostulacionViewSet, basename="postulacion")
 router.register("eventos", views.EventoViewSet, basename="evento")

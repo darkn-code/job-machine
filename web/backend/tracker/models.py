@@ -5,6 +5,21 @@ from django.db import models
 from django.utils import timezone
 
 
+class HabilidadMejora(models.Model):
+    class Estado(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        EN_PROGRESO = "en_progreso", "En progreso"
+        APRENDIDA = "aprendida", "Aprendida"
+
+    nombre = models.CharField(max_length=120, unique=True)
+    notas = models.TextField(blank=True)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE)
+
+    class Meta:
+        ordering = ["nombre"]
+        constraints = [models.UniqueConstraint(models.functions.Lower("nombre"), name="habilidad_mejora_nombre_ci")]
+
+
 class Empresa(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
     web = models.URLField(blank=True)
